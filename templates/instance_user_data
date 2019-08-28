@@ -1,0 +1,156 @@
+Content-Type: multipart/mixed; boundary="//"
+MIME-Version: 1.0
+
+--//
+Content-Type: text/cloud-config; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="cloud-config.txt"
+
+#cloud-config
+repo_update: true
+repo_upgrade: all
+package_upgrade: true
+packages:
+    - wget 
+    - tree
+    - tar
+    - unzip
+%{if disk_layout == "dl1" }
+disk_setup:
+   /dev/xvdb:
+       table_type: 'mbr'
+       layout:
+           - [100, 83]
+       overwrite: true
+
+    /dev/xvdc:
+      table_type: 'mbr'
+       layout:
+           - [100, 83]
+       overwrite: true
+
+
+fs_setup:
+ - cmd: mkfs -t %(filesystem)s -L %(label)s %(device)s
+   label: data
+   filesystem: 'xfs'
+   partition: auto
+   overwrite: true
+   device: '/dev/xvdb1'
+ - cmd: mkfs -t %(filesystem)s -L %(label)s %(device)s
+   label: log
+   filesystem: 'xfs'
+   partition: auto
+   overwrite: true
+   device: '/dev/xvdc1'   
+
+
+
+mounts:
+ - [ /dev/xvdb1, /usr/share/test/data, "xfs", "defaults,nofail", "0", "2" ]
+ - [ /dev/xvdc1, /usr/share/test/log, "xfs", "defaults,nofail", "0", "2" ]
+
+%{ endif }
+%{if disk_layout == "dl2" }
+disk_setup:
+   /dev/nvme1n1:
+       table_type: 'mbr'
+       layout:
+           - [100, 83]
+       overwrite: true
+
+   /dev/nvme1n2:
+       table_type: 'mbr'
+       layout:
+           - [100, 83]
+       overwrite: true    
+
+fs_setup:
+ - cmd: mkfs -t %(filesystem)s -L %(label)s %(device)s
+   label: data
+   filesystem: 'xfs'
+   partition: auto
+   overwrite: true
+   device: '/dev/nvme1n1p1'
+
+- cmd: mkfs -t %(filesystem)s -L %(label)s %(device)s
+   label: log
+   filesystem: 'xfs'
+   partition: auto
+   overwrite: true
+   device: '/dev/nvme1n1p2'
+
+mounts:
+ - [ /dev/nvme1n1p1, /usr/share/test/data, "xfs", "defaults,nofail", "0", "2" ]
+ - [ /dev/nvme1n1p2, /usr/share/test/log, "xfs", "defaults,nofail", "0", "2" ]
+%{ endif }
+%{if disk_layout == "dl3" }
+disk_setup:
+   /dev/nvme0n1:
+       table_type: 'mbr'
+       layout:
+           - [2, 83]
+           - [98, 83]
+       overwrite: true
+
+fs_setup:
+ - cmd: mkfs -t %(filesystem)s -L %(label)s %(device)s
+   label: data
+   filesystem: 'xfs'
+   partition: auto
+   overwrite: true
+   device: '/dev/nvme0n1p1'
+ - cmd: mkfs -t %(filesystem)s -L %(label)s %(device)s
+   label: log
+   filesystem: 'xfs'
+   partition: auto
+   overwrite: true
+   device: '/dev/nvme0n1p2'
+
+mounts:
+ - [ /dev/nvme0n1p1, /usr/share/test/data, "xfs", "defaults,nofail", "0", "2" ]
+ - [ /dev/nvme0n1p2, /usr/share/test/log "        xfs", "defaults,nofail", "0", "2" ]
+%{ endif }
+
+
+output:
+    init:
+        output: ">> /usr/share/test/log/cloud-init.log"
+        error: ">> /usr/share/test/log/cloud-init.log"
+    config: ">> /usr/share/test/log/cloud-init.log"
+    final:
+        - ">> /usr/share/test/log/cloud-userdata.log"
+        - ">> /usr/share/test/log/cloud-userdata.log"
+
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment; filename="userdata.txt"
+
+#!/bin/bash
+
+
+# Version
+DRUID_VERSION=0.15.1
+
+
+set -x
+#DRUID binary installation
+mkdir /usr/share/test/code
+cd /usr/share/test/code
+wget -q -O - \
+    https://archive.apache.org/dist/incubator/druid/$DRUID_VERSION-incubating/apache-druid-$DRUID_VERSION-incubating-bin.tar.gz \
+    | tar -xzf - -C /usr/share/test/code
+
+lsblk >>/usr/share/test/log/mounts.txt
+tree /usr/share/test >>/usr/share/test/data/outputs.txt     
+
+
+###
+
+set +x
+exit 0
+
+--//

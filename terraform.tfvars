@@ -1,0 +1,7 @@
+env = "test"
+region = "us-east-1"
+subnets = "subnet-45321718"
+AWS_ACCESS_KEY = "ami-0b316d93070d59e63"
+AWS_SECRET_KEY = ""
+ami = "ami-071b469f1bb373db6"
+instance_user_data_file = "instance_user_data"
